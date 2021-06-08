@@ -4,6 +4,7 @@ import { BrowserModule } from '@angular/platform-browser';
 import { AppComponent } from './app.component';
 import {RouterModule} from "@angular/router";
 import {AppRoutingModule} from "./app.routing.module";
+import {WINDOW_PROVIDERS} from "@services/window";
 
 @NgModule({
   declarations: [
@@ -14,7 +15,7 @@ import {AppRoutingModule} from "./app.routing.module";
     RouterModule,
     AppRoutingModule
   ],
-  providers: [],
+  providers: [WINDOW_PROVIDERS],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

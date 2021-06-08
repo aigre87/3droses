@@ -2,16 +2,12 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
+    "resolveJsonModule": true,
     "baseUrl": "./",
     "paths": {
-      "components": [
-        "dist/components/components",
-        "dist/components"
-      ],
-      "pages": [
-        "dist/pages/pages",
-        "dist/pages"
-      ]
+      "@pages/*": ["projects/pages/src/lib/*"],
+      "@components/*": ["projects/components/src/lib/*"],
+      "@services/*": ["projects/services/src/lib/*"]
     },
     "outDir": "./dist/out-tsc",
     "sourceMap": true,
@@ -25,7 +21,8 @@
     "lib": [
       "es2018",
       "dom"
-    ]
+    ],
+    "allowSyntheticDefaultImports": true
   },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false
