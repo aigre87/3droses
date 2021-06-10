@@ -5,10 +5,13 @@ import { isPlainObject } from 'is-plain-object';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { OBJLoader } from 'three/examples/jsm/loaders//OBJLoader';
 import Stats from 'three/examples/jsm/libs/stats.module';
-import {BehaviorSubject, fromEvent, Subject} from "rxjs";
+import {BehaviorSubject, fromEvent, Observable, Observer, Subject} from "rxjs";
 import {debounceTime, takeUntil} from "rxjs/operators";
 import { isDevMode } from '@angular/core';
 import {MTLLoader} from "three/examples/jsm/loaders/MTLLoader";
+import {ImageLoader} from "three";
+const particlesVs = require('!raw-loader!./particles-vs.glsl').default;
+const particlesFs = require('!raw-loader!./particles-fs.glsl').default;
 
 export interface threeViewWebglParameters {
   name?: string,
@@ -36,8 +39,13 @@ class threeViewWebgl {
   req: number;
   objLoader: OBJLoader;
   mtlLoader: MTLLoader;
+  imageLoader: ImageLoader;
   loadingManager: THREE.LoadingManager;
   allInitPromises: Promise<any>[] = [];
+  canvasImageHelper: HTMLCanvasElement;
+  imageObject: any = {};
+  clock: THREE.Clock;
+  particlesMaterial: THREE.ShaderMaterial;
   defaultParameters: Partial<threeViewWebglParameters> = {
     name: 'name-placeholder',
   }
@@ -52,6 +60,7 @@ class threeViewWebgl {
   }
 
   init(options: threeViewWebglInitOptions) {
+    this.initCommon();
     this.setSize();
     this.initThree();
     this.resize();
@@ -91,23 +100,27 @@ class threeViewWebgl {
     this.gui = new dat.GUI();
     document.body.appendChild(this.stats.dom);
     this.orbitControls = new OrbitControls(this.camera, this.renderer.domElement);
+    this.scene.add(new THREE.AxesHelper(500));
+    // this.scene.add(new THREE.CameraHelper(this.camera));
+  }
+  initCommon(){
+    this.canvasImageHelper = document.createElement('canvas');
+    document.body.appendChild(this.canvasImageHelper);
   }
   initThree(){
     if (!THREE.WebGLRenderer) {
       console.warn('THREE not defined on window');
       return;
     }
+    this.clock = new THREE.Clock()
     this.scene = new THREE.Scene();
-    console.log(this.width, this.height);
     this.camera = new THREE.PerspectiveCamera(
       45,
       this.width / this.height,
-      1,
-      10000,
+      0.1,
+      10,
     );
-    this.camera.position.y = 2000;
-    this.camera.position.x = -1000;
-    this.camera.position.z = 1000;
+    this.camera.position.z = 2;
 
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.options.canvas,
@@ -115,6 +128,21 @@ class threeViewWebgl {
       antialias: true,
     });
   }
+
+  private loadImage(imagePath: string): Observable<HTMLImageElement> {
+    return new Observable((observer: Observer<HTMLImageElement>) => {
+      let img = new Image();
+      img.src = imagePath;
+      img.onload = () => {
+        observer.next(img);
+        observer.complete();
+      };
+      img.onerror = err => {
+        observer.error(err);
+      };
+    });
+  }
+
   customFnc(){
     {
       const light = new THREE.AmbientLight( 0x404040, 1 ); // soft white light
@@ -139,136 +167,98 @@ class threeViewWebgl {
     );
     this.objLoader = new OBJLoader(this.loadingManager);
     this.mtlLoader = new MTLLoader(this.loadingManager);
+    this.imageLoader = new ImageLoader(this.loadingManager);
 
-    // this.mtlLoader.load(
-    //   '/resources/models-3d/3d_rose_hipoli_lowpoli/3d_rose_hipoli_lowpoli.mtl',
-    //   (mtl) => {
-    //     mtl.preload();
-    //     // mtl.materials.Material.side = THREE.DoubleSide;
-    //     this.objLoader.setMaterials(mtl);
-    //     this.objLoader.load(
-    //       // resource URL
-    //       '/resources/models-3d/3d_rose_hipoli_lowpoli/3d_rose_hipoli_lowpoli.obj',
-    //       // called when resource is loaded
-    //       ( object ) => {
-    //         // object.setScale(0.5,0.5);
-    //         console.log( 'resource is loaded' );
-    //         object.traverse( function ( child ) {
-    //           if(child instanceof THREE.Mesh){
-    //             child.material.map = texture;
-    //           }
-    //         } );
-    //         this.scene.add( object );
-    //       },
-    //       // called when loading is in progresses
-    //       ( xhr ) => {
-    //         console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
-    //       },
-    //       // called when loading has errors
-    //       ( error ) => {
-    //         console.log( 'An error happened' );
-    //       }
-    //     );
-    //   },
-    //   () => {
-    //
-    //   },
-    //   () => {
-    //
-    //   }
-    // )
-
-    this.objLoader.load(
+    this.imageLoader.load(
       // resource URL
-      '/resources/models-3d/3d_rose_hipoli_lowpoli/3d_rose_hipoli_lowpoli.obj',
-      // called when resource is loaded
-      ( object ) => {
-        const materials = {
-          // wire_177027088: new THREE.MeshPhysicalMaterial({
-          //   metalness: 0,
-          //   roughness: 1,
-          //   envMapIntensity: 0.1,
-          //   clearcoat: 1,
-          //   transparent: true,
-          //   transmission: .95,
-          //   opacity: 1,
-          //   reflectivity: 0.2,
-          // }),
-          wire_177027088: new THREE.MeshPhysicalMaterial({
-            metalness: .9,
-            roughness: .05,
-            envMapIntensity: 0.9,
-            clearcoat: 1,
-            transparent: true,
-            // transmission: .95,
-            opacity: .5,
-            reflectivity: 0.2,
-            refractionRatio: 0.985,
-            ior: 0.9,
-            side: THREE.BackSide,
-          }),
-          wire_228214153: new THREE.MeshBasicMaterial({
-            color: 0x00ff00,
-            opacity: 1,
-            transparent: false,
-            side: THREE.DoubleSide
-          }),
-        };
-        const guiGlassFolder = this.gui.addFolder('glass');
-        guiGlassFolder.add(materials['wire_177027088'], 'metalness', 0 , 1, 0.1);
-        guiGlassFolder.add(materials['wire_177027088'], 'roughness', 0 , 1, 0.1)
-        guiGlassFolder.add(materials['wire_177027088'], 'envMapIntensity', 0 , 1, 0.1)
-        guiGlassFolder.add(materials['wire_177027088'], 'clearcoat', 0 , 10, 0.1)
-        guiGlassFolder.add(materials['wire_177027088'], 'transmission', 0 , 1, 0.1)
-        guiGlassFolder.add(materials['wire_177027088'], 'opacity', 0 , 1, 0.1)
-        guiGlassFolder.add(materials['wire_177027088'], 'reflectivity', 0 , 1, 0.1);
-        guiGlassFolder.add(materials['wire_177027088'], 'refractionRatio', 0 , 5, 0.1);
-        guiGlassFolder.add(materials['wire_177027088'], 'ior', 0 , 5, 0.1);
+      //'/resources/images/pic-4000x5000.jpg',
+      '/resources/images/pic-400x400.jpg',
 
-
-        // guiGlassFolder.add(materials['wire_177027088'], 'metalness', 0 , 1, 0.1);
-        // guiGlassFolder.add(materials['wire_177027088'], 'roughness', 0 , 1, 0.1)
-        // guiGlassFolder.add(materials['wire_177027088'], 'envMapIntensity', 0 , 1, 0.1)
-        // guiGlassFolder.add(materials['wire_177027088'], 'clearcoat', 0 , 1, 0.1)
-        // guiGlassFolder.add(materials['wire_177027088'], 'transmission', 0 , 1, 0.1)
-        // guiGlassFolder.add(materials['wire_177027088'], 'opacity', 0 , 1, 0.1)
-        // guiGlassFolder.add(materials['wire_177027088'], 'reflectivity', 0 , 1, 0.1)
-
-        console.log( 'resource is loaded' );
-        // object.traverse( function ( child ) {
-        //   if(child instanceof THREE.Mesh){
-        //     child.material.map = texture;
-        //   }
-        // } );
-        object.traverse(node => {
-          if(node instanceof THREE.Mesh){
-            if(typeof node.material?.name !== 'undefined'){
-              const material = materials[node.material?.name];
-              console.log('node.material?.name:', node.material?.name);
-              if (material) {
-                node.material = material;
-              }
-            }
-          }
-        })
-        this.scene.add( object );
+      // onLoad callback
+      ( image ) => {
+        this.getImageData(image);
+        this.createPointsFromImgData();
       },
-      // called when loading is in progresses
-      ( xhr ) => {
-        console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
-      },
-      // called when loading has errors
-      ( error ) => {
-        console.log( 'An error happened' );
+      // onProgress callback currently not supported
+      undefined,
+      // onError callback
+      function () {
+        console.error( 'An error happened.' );
       }
     );
+  }
+  getImageData(img){
+    const ctx = this.canvasImageHelper.getContext('2d');
+    this.canvasImageHelper.width = img.naturalWidth;
+    this.canvasImageHelper.height = img.naturalHeight;
 
-    function loadModel(obj, texture) {
-      obj.traverse( function ( child ) {
-        if ( child.isMesh ) child.material.map = texture;
-      } );
-      this.scene.add( obj );
+    ctx.drawImage(img,0,0);
+    let data = ctx.getImageData(0,0,this.canvasImageHelper.width,this.canvasImageHelper.height);
+    let buffer = data.data;
+    let rgb = [];
+    let c = new THREE.Color();
+    for (let i = 0; i < buffer.length; i=i+4) {
+      c.setRGB(buffer[i],buffer[i+1],buffer[i+2]);
+      rgb.push({c: c.clone(),id: i/4});
     }
+    let result = new Float32Array(img.width*img.height*2);
+    let j = 0;
+    const target = {h:0,s:0,l:0};
+    rgb.sort( function( a, b ) {
+      return a.c.getHSL(target).s - b.c.getHSL(target).s;
+    });
+
+    rgb.forEach(e => {
+      result[j] = e.id % img.width;
+      result[j+1] = Math.floor(e.id / img.height);
+      j= j +2;
+    });
+
+    console.log(result,'result');
+
+    this.imageObject.image = img;
+    this.imageObject.texture = new THREE.Texture(img);
+    this.imageObject.buffer = result;
+    this.imageObject.texture.needsUpdate = true;
+    this.imageObject.texture.flipY = false;
+    console.log(this.imageObject);
+  }
+  createPointsFromImgData(){
+    let w = this.imageObject.image.width;
+    let h = this.imageObject.image.height;
+
+    let positions = new Float32Array(w*h*3);
+    let index = 0;
+    for (let i = 0; i < w; i++) {
+      for (let j = 0; j < h; j++) {
+        positions[index*3] = j;
+        positions[index*3+1] = i;
+        positions[index*3+2] = 0;
+        index++;
+      }
+    }
+
+    let geometry = new THREE.BufferGeometry();
+
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions,3));
+    geometry.setAttribute('source',new THREE.BufferAttribute(this.imageObject.buffer,2));
+
+    console.log(this.imageObject);
+    console.log(new THREE.Vector2(w,h));
+    this.particlesMaterial = new THREE.RawShaderMaterial( {
+      uniforms: {
+        u_sourceTex: { value: this.imageObject.texture },
+        u_blend: { value: 0 },
+        u_time: { value: 1 },
+        u_size: { value: Math.min(window.devicePixelRatio, 2) },//window.devicePixelRatio },
+        u_dimensions: { value: new THREE.Vector2(w,h) },
+      },
+      vertexShader: particlesVs,
+      fragmentShader: particlesFs,
+    });
+
+    let points = new THREE.Points(geometry,this.particlesMaterial);
+    this.scene.add(points);
   }
   isOnScreen() {
     const elHeight = this.options.canvas.offsetHeight;
@@ -282,14 +272,20 @@ class threeViewWebgl {
     return minScrollTop <= scrollTop && scrollTop <= maxScrollTop;
   }
   animationTick() {
+    if (this.stats) {
+      this.stats.update();
+    }
     if (this.isOnScreen()) {
+      const elapsedTime = this.clock.getElapsedTime();
+      // particles
+      if(this.particlesMaterial){
+        this.particlesMaterial.uniforms.u_time.value = elapsedTime
+      }
       this.isOnScreenStatus$.next(true);
       if (this.scene && this.camera) {
         this.renderer.render(this.scene, this.camera)
       }
-      if (this.stats) {
-        this.stats.update();
-      }
+
     } else {
       this.isOnScreenStatus$.next(false);
     }
