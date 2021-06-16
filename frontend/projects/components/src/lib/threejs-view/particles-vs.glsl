@@ -24,9 +24,9 @@ void main() {
   p.xy = p.xy - 0.5 * u_dimensions;
   p*= 1. / u_dimensions.x;
   p.y*= -1.0;
-  // p.z= rand(p.xy)*0.1;
+  p.z= rand(p.xy)*0.2;
 
   vec4 mvPosition = modelViewMatrix * vec4( p, 1.0 );
-  gl_PointSize = u_size * ( 1. / -mvPosition.z ) * 1.5;
+  gl_PointSize = u_size * ( 1. / -mvPosition.z ) * 1.1;
   gl_Position = projectionMatrix * mvPosition;
 }

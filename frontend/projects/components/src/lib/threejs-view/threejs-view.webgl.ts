@@ -9,7 +9,8 @@ import {BehaviorSubject, fromEvent, Observable, Observer, Subject} from "rxjs";
 import {debounceTime, takeUntil} from "rxjs/operators";
 import { isDevMode } from '@angular/core';
 import {MTLLoader} from "three/examples/jsm/loaders/MTLLoader";
-import {ImageLoader} from "three";
+import {ImageLoader, Mesh, MeshStandardMaterial} from "three";
+import {GLTFLoader} from "three/examples/jsm/loaders/GLTFLoader";
 const particlesVs = require('!raw-loader!./particles-vs.glsl').default;
 const particlesFs = require('!raw-loader!./particles-fs.glsl').default;
 
@@ -41,6 +42,7 @@ class threeViewWebgl {
   mtlLoader: MTLLoader;
   imageLoader: ImageLoader;
   loadingManager: THREE.LoadingManager;
+  gltfLoader: GLTFLoader;
   allInitPromises: Promise<any>[] = [];
   canvasImageHelper: HTMLCanvasElement;
   imageObject: any = {};
@@ -120,7 +122,8 @@ class threeViewWebgl {
       0.1,
       10,
     );
-    this.camera.position.z = 2;
+    this.camera.position.z = 1.5;
+    this.camera.position.y = 1.5;
 
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.options.canvas,
@@ -145,9 +148,17 @@ class threeViewWebgl {
 
   customFnc(){
     {
-      const light = new THREE.AmbientLight( 0x404040, 1 ); // soft white light
+      const lightOptions = {
+        color: 0xff0000
+      }
+      const light = new THREE.AmbientLight( lightOptions.color, 10 ); // soft white light
       this.scene.add(light);
-      this.gui.addFolder('light').add(light, 'intensity', 0 , 10);
+      const colorFolder = this.gui.addFolder('light');
+      colorFolder.add(light, 'intensity', 0 , 10);
+      colorFolder.addColor(lightOptions, 'color').onChange(val=>{
+        light.color.setHex( val );
+      });
+
     }
 
     // manager, loaders
@@ -168,24 +179,116 @@ class threeViewWebgl {
     this.objLoader = new OBJLoader(this.loadingManager);
     this.mtlLoader = new MTLLoader(this.loadingManager);
     this.imageLoader = new ImageLoader(this.loadingManager);
-
-    this.imageLoader.load(
+    this.gltfLoader = new GLTFLoader(this.loadingManager);
+    this.gltfLoader.load(
       // resource URL
-      //'/resources/images/pic-4000x5000.jpg',
-      '/resources/images/pic-400x400.jpg',
+      '/resources/models-3d/rose44/1623425892_r44.gltf',
+      // called when the resource is loaded
+      ( gltf ) => {
 
-      // onLoad callback
-      ( image ) => {
-        this.getImageData(image);
-        this.createPointsFromImgData();
+        this.scene.add( gltf.scene );
+
+        console.log('anima', gltf.animations); // Array<THREE.AnimationClip>
+        console.log('scene', gltf.scene); // THREE.Group
+        console.log('scene', gltf.scenes); // Array<THREE.Group>
+        console.log('camer', gltf.cameras); // Array<THREE.Camera>
+        console.log('asset', gltf.asset); // Object
+        gltf.scenes[0].children[0].children.forEach( (mesh:Mesh, index) => {
+          if(mesh.name === 'Object415_Detached406'){
+            const calizStella_mat = new THREE.MeshPhysicalMaterial({
+              metalness: .9,
+              roughness: .05,
+              envMapIntensity: 0.9,
+              clearcoat: 1,
+              color: '0x0000ff',
+              transparent: true,
+              // transmission: .95,
+              opacity: .5,
+              reflectivity: 0.2,
+              refractionRatio: 0.985,
+              ior: 0.9,
+              side: THREE.BackSide,
+            })
+            const mesh1 = mesh as THREE.Mesh;
+            const mesh1Mat = mesh1.material as THREE.MeshStandardMaterial;
+            mesh1.material = calizStella_mat;
+            // mesh1Mat.transparent = true;
+            // mesh1Mat.opacity = 0.5;
+            // mesh1.dispose();
+            // gltf.scenes[0].children.splice(index, 1);
+            const c = this.getCenterPoint(mesh1);
+            this.camera.lookAt(c);
+            this.orbitControls.target = c;
+            const boxOptions = {
+              color: 0xff0000
+            }
+            const boxFolder = this.gui.addFolder('box')
+            boxFolder
+              .addColor(boxOptions, 'color')
+              .onChange(() =>
+              {
+                calizStella_mat.color.set(boxOptions.color)
+              });
+          }
+          // if(mesh.name === 'Object420'){
+          //   const a = mesh.material as THREE.MeshStandardMaterial;
+          //   a.side = THREE.DoubleSide;
+          // }
+          // if(mesh.name === 'Object421'){
+          //   const mesh1 = mesh as THREE.Mesh;
+          //   const mesh1Mat = mesh1.material as THREE.MeshStandardMaterial;
+          //   const roseOptions = {
+          //     color: 0xff0000
+          //   }
+          //   const roseFolder = this.gui.addFolder('rose')
+          //   roseFolder
+          //     .addColor(roseOptions, 'color')
+          //     .onChange(() =>
+          //     {
+          //       mesh1Mat.color.set(roseOptions.color)
+          //     });
+          // }
+        })
       },
-      // onProgress callback currently not supported
-      undefined,
-      // onError callback
-      function () {
-        console.error( 'An error happened.' );
+      // called while loading is progressing
+      function ( xhr ) {
+
+        console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
+
+      },
+      // called when loading has errors
+      function ( error ) {
+
+        console.log( 'An error happened' );
+
       }
     );
+
+    // this.imageLoader.load(
+    //   // resource URL
+    //   //'/resources/images/pic-4000x5000.jpg',
+    //   '/resources/images/pic-400x400.jpg',
+    //
+    //   // onLoad callback
+    //   ( image ) => {
+    //     this.getImageData(image);
+    //     this.createPointsFromImgData();
+    //   },
+    //   // onProgress callback currently not supported
+    //   undefined,
+    //   // onError callback
+    //   function () {
+    //     console.error( 'An error happened.' );
+    //   }
+    // );
+  }
+  getCenterPoint(mesh) {
+    let geometry = mesh.geometry;
+    geometry.computeBoundingBox();
+    let center = new THREE.Vector3();
+    geometry.boundingBox.getCenter( center );
+    mesh.localToWorld( center );
+    return center;
   }
   getImageData(img){
     const ctx = this.canvasImageHelper.getContext('2d');
