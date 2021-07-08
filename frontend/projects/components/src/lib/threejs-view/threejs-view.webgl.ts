@@ -118,15 +118,36 @@ class threeViewWebgl {
 
   initLights(){
     const lightOptions = {
-      color: 0xffffff
+      ambient: {
+        color: 0xffffff
+      },
+      point: {
+        color: 0xffffff
+      }
     }
-    const light = new THREE.AmbientLight( lightOptions.color, 5 ); // soft white light
-    this.scene.add(light);
+    const ambientLight = new THREE.AmbientLight( lightOptions.ambient.color, 3 ); // soft white light
+    this.scene.add(ambientLight);
+
     const colorFolder = this.gui.addFolder('light');
-    colorFolder.add(light, 'intensity', 0 , 10);
-    colorFolder.addColor(lightOptions, 'color').onChange(val=>{
-      light.color.setHex( val );
+    const ambientFolder = colorFolder.addFolder('ambient')
+    ambientFolder.add(ambientLight, 'intensity', 0 , 10);
+    ambientFolder.addColor(lightOptions.ambient, 'color').onChange(val=>{
+      ambientLight.color.setHex( val );
     });
+
+    const pointLight = new THREE.PointLight( lightOptions.point.color, 1, 5 );
+    pointLight.position.set( 0.5, 1, 0.5 );
+    this.scene.add( pointLight );
+    const pointFolder = colorFolder.addFolder('point')
+    pointFolder.add(pointLight, 'intensity', 0 , 10);
+    pointFolder.addColor(lightOptions.point, 'color').onChange(val=>{
+      pointLight.color.setHex( val );
+    });
+
+    const sphereSize = 0.2;
+    const pointLightHelper = new THREE.PointLightHelper( pointLight, sphereSize, 0xff0000 );
+    this.scene.add( pointLightHelper );
+
   }
 
   initLoaders(){
