@@ -25,13 +25,18 @@ export class ThreejsViewComponent implements OnInit, AfterViewInit, OnDestroy {
         self.threejsView = new threeViewWebgl.default({
           canvas: this.canvas.nativeElement,
           container: this.container.nativeElement,
+          resourcesLoadedCallback: self.threeViewInitCallback.bind(self),
+          rose: {
+            color: '#00ffff'
+          }
         });
-        self.threejsView.init({ callback: self.threeViewInitCallback.bind(self) });
+        self.threejsView.init();
       });
     }
   }
   threeViewInitCallback() {
     if (this.threejsView) {
+      console.log('cb!');
       this.animationInitEmit.emit(this.threejsView);
     }
   }
