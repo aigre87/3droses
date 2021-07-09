@@ -3,13 +3,11 @@ import * as dat from 'dat.gui';
 import { default as deepmerge } from 'deepmerge';
 import { isPlainObject } from 'is-plain-object';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { OBJLoader } from 'three/examples/jsm/loaders//OBJLoader';
 import Stats from 'three/examples/jsm/libs/stats.module';
 import {BehaviorSubject, fromEvent, Subject} from "rxjs";
 import {debounceTime, takeUntil} from "rxjs/operators";
 import { isDevMode } from '@angular/core';
-import {MTLLoader} from "three/examples/jsm/loaders/MTLLoader";
-import {ImageLoader, Mesh, Vector3} from "three";
+import {Mesh, Vector3} from "three";
 import {GLTFLoader} from "three/examples/jsm/loaders/GLTFLoader";
 
 export interface threeViewWebglParameters {
@@ -57,9 +55,9 @@ class threeViewWebgl {
     this.initThree();
     this.initCamera();
     this.resize();
-    if (this.isDevMode) {
-      this.initDebug();
-    }
+    // if (this.isDevMode) {
+    //   this.initDebug();
+    // }
     this.initLoaders();
     this.initLights();
     this.loadModel();
@@ -73,13 +71,13 @@ class threeViewWebgl {
       });
     window.requestAnimationFrame(this.resize); // Force a resize after the first frame
   }
-  initDebug(){
-    this.stats = Stats();
-    this.gui = new dat.GUI();
-    document.body.appendChild(this.stats.dom);
-    this.scene.add(new THREE.AxesHelper(500));
-    // this.scene.add(new THREE.CameraHelper(this.camera));
-  }
+  // initDebug(){
+  //   this.stats = Stats();
+  //   this.gui = new dat.GUI();
+  //   document.body.appendChild(this.stats.dom);
+  //   this.scene.add(new THREE.AxesHelper(500));
+  //   // this.scene.add(new THREE.CameraHelper(this.camera));
+  // }
   initThree(){
     if (!THREE.WebGLRenderer) {
       console.warn('THREE not defined on window');
@@ -107,7 +105,7 @@ class threeViewWebgl {
     this.orbitControls = new OrbitControls(this.camera, this.renderer.domElement);
     this.orbitControls.enableDamping = true;
     this.orbitControls.autoRotate = true;
-    this.orbitControls.autoRotateSpeed = 0.5;
+    this.orbitControls.autoRotateSpeed = 0.75;
     this.orbitControls.dampingFactor = 0.1;
     this.orbitControls.minDistance = 1;
     this.orbitControls.maxDistance = 3;
@@ -117,6 +115,7 @@ class threeViewWebgl {
   }
 
   initLights(){
+    let colorFolder;
     const lightOptions = {
       ambient: {
         color: 0xffffff
@@ -125,29 +124,32 @@ class threeViewWebgl {
         color: 0xffffff
       }
     }
+
     const ambientLight = new THREE.AmbientLight( lightOptions.ambient.color, 3 ); // soft white light
     this.scene.add(ambientLight);
 
-    const colorFolder = this.gui.addFolder('light');
-    const ambientFolder = colorFolder.addFolder('ambient')
-    ambientFolder.add(ambientLight, 'intensity', 0 , 10);
-    ambientFolder.addColor(lightOptions.ambient, 'color').onChange(val=>{
-      ambientLight.color.setHex( val );
-    });
+    if(this.gui && this.isDevMode){
+      colorFolder = this.gui.addFolder('light');
+      const ambientFolder = colorFolder.addFolder('ambient')
+      ambientFolder.add(ambientLight, 'intensity', 0 , 10);
+      ambientFolder.addColor(lightOptions.ambient, 'color').onChange(val=>{
+        ambientLight.color.setHex( val );
+      });
+    }
 
     const pointLight = new THREE.PointLight( lightOptions.point.color, 1, 5 );
     pointLight.position.set( 0.5, 1, 0.5 );
     this.scene.add( pointLight );
-    const pointFolder = colorFolder.addFolder('point')
-    pointFolder.add(pointLight, 'intensity', 0 , 10);
-    pointFolder.addColor(lightOptions.point, 'color').onChange(val=>{
-      pointLight.color.setHex( val );
-    });
-
-    const sphereSize = 0.2;
-    const pointLightHelper = new THREE.PointLightHelper( pointLight, sphereSize, 0xff0000 );
-    this.scene.add( pointLightHelper );
-
+    if(this.gui){
+      const pointFolder = colorFolder.addFolder('point')
+      pointFolder.add(pointLight, 'intensity', 0 , 10);
+      pointFolder.addColor(lightOptions.point, 'color').onChange(val=>{
+        pointLight.color.setHex( val );
+      });
+      const sphereSize = 0.2;
+      const pointLightHelper = new THREE.PointLightHelper( pointLight, sphereSize, 0xff0000 );
+      this.scene.add( pointLightHelper );
+    }
   }
 
   initLoaders(){
@@ -230,18 +232,20 @@ class threeViewWebgl {
             // бутон
             const material = mesh.material as THREE.MeshStandardMaterial;
             material.side = THREE.DoubleSide;
-            console.log('this.options?.rose?.color', this.options?.rose?.color);
+
             const roseOptions = {
               color: this.options?.rose?.color ? this.options.rose.color : 0xff0000,
             }
             material.color.set(roseOptions.color);
-            const roseFolder = this.gui.addFolder('rose')
-            roseFolder
-              .addColor(roseOptions, 'color')
-              .onChange(() =>
-              {
-                material.color.set(roseOptions.color)
-              });
+            if(this.gui && this.isDevMode){
+              const roseFolder = this.gui.addFolder('rose')
+              roseFolder
+                .addColor(roseOptions, 'color')
+                .onChange(() =>
+                {
+                  material.color.set(roseOptions.color)
+                });
+            }
           }
         })
       },

@@ -1,4 +1,14 @@
-import {AfterViewInit, Component, ElementRef, OnDestroy, OnInit, Output, ViewChild, EventEmitter} from '@angular/core';
+import {
+  AfterViewInit,
+  Component,
+  ElementRef,
+  OnDestroy,
+  OnInit,
+  Output,
+  ViewChild,
+  EventEmitter,
+  Input
+} from '@angular/core';
 import {BoxService} from "../../../../services/src/lib/box";
 
 @Component({
@@ -9,6 +19,7 @@ import {BoxService} from "../../../../services/src/lib/box";
 export class ThreejsViewComponent implements OnInit, AfterViewInit, OnDestroy {
   threejsView: any = null;
   @Output() animationInitEmit = new EventEmitter();
+  @Input() roseColor: string;
   @ViewChild('canvas') canvas: ElementRef;
   @ViewChild('container') container: ElementRef;
   constructor(
@@ -22,12 +33,13 @@ export class ThreejsViewComponent implements OnInit, AfterViewInit, OnDestroy {
     const self = this;
     if (this.boxService.isBrowser) {
       import('./threejs-view.webgl').then((threeViewWebgl) => {
+        console.log('this.', this.roseColor);
         self.threejsView = new threeViewWebgl.default({
           canvas: this.canvas.nativeElement,
           container: this.container.nativeElement,
           resourcesLoadedCallback: self.threeViewInitCallback.bind(self),
           rose: {
-            color: '#00ffff'
+            color: this.roseColor ? this.roseColor : null
           }
         });
         self.threejsView.init();
