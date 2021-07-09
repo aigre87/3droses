@@ -71,13 +71,13 @@ class threeViewWebgl {
       });
     window.requestAnimationFrame(this.resize); // Force a resize after the first frame
   }
-  // initDebug(){
-  //   this.stats = Stats();
-  //   this.gui = new dat.GUI();
-  //   document.body.appendChild(this.stats.dom);
-  //   this.scene.add(new THREE.AxesHelper(500));
-  //   // this.scene.add(new THREE.CameraHelper(this.camera));
-  // }
+  initDebug(){
+    this.stats = Stats();
+    this.gui = new dat.GUI();
+    document.body.appendChild(this.stats.dom);
+    this.scene.add(new THREE.AxesHelper(500));
+    // this.scene.add(new THREE.CameraHelper(this.camera));
+  }
   initThree(){
     if (!THREE.WebGLRenderer) {
       console.warn('THREE not defined on window');
@@ -237,13 +237,30 @@ class threeViewWebgl {
               color: this.options?.rose?.color ? this.options.rose.color : 0xff0000,
             }
             material.color.set(roseOptions.color);
+
+            const new_mat = new THREE.MeshPhysicalMaterial({
+              metalness: .9,
+              roughness: .05,
+              envMapIntensity: 0.9,
+              clearcoat: 1,
+              color: roseOptions.color,
+              transparent: true,
+              // transmission: .95,
+              opacity: 1,
+              reflectivity: 0.2,
+              refractionRatio: 0.985,
+              ior: 0.9,
+              side: THREE.DoubleSide,
+            })
+            mesh.material = new_mat;
+
             if(this.gui && this.isDevMode){
               const roseFolder = this.gui.addFolder('rose')
               roseFolder
                 .addColor(roseOptions, 'color')
                 .onChange(() =>
                 {
-                  material.color.set(roseOptions.color)
+                  new_mat.color.set(roseOptions.color)
                 });
             }
           }
